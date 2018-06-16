@@ -1,0 +1,19 @@
+add wechat user entities:
+  title: 'Create new Wechat user entities'
+
+administer wechat user entities:
+  title: 'Administer Wechat user entities'
+  description: 'Allow to access the administration form to configure Wechat user entities.'
+  restrict access: true
+
+delete wechat user entities:
+  title: 'Delete Wechat user entities'
+
+edit wechat user entities:
+  title: 'Edit Wechat user entities'
+
+view published wechat user entities:
+  title: 'View published Wechat user entities'
+
+view unpublished wechat user entities:
+  title: 'View unpublished Wechat user entities'

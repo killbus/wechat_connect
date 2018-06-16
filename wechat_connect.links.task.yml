@@ -1,0 +1,22 @@
+# Wechat user routing definition
+wechat_user.settings_tab:
+  route_name: wechat_user.settings
+  title: 'Settings'
+  base_route: wechat_user.settings
+
+entity.wechat_user.canonical:
+  route_name: entity.wechat_user.canonical
+  base_route: entity.wechat_user.canonical
+  title: 'View'
+
+entity.wechat_user.edit_form:
+  route_name: entity.wechat_user.edit_form
+  base_route: entity.wechat_user.canonical
+  title: 'Edit'
+
+entity.wechat_user.delete_form:
+  route_name:  entity.wechat_user.delete_form
+  base_route:  entity.wechat_user.canonical
+  title: Delete
+  weight: 10
+

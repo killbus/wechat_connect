@@ -1,0 +1,23 @@
+
+# Wechat applcation menu items definition
+entity.wechat_applcation.collection:
+  title: 'Wechat applcation'
+  route_name: entity.wechat_applcation.collection
+  description: 'List Wechat applcation (bundles)'
+  parent: system.admin_structure
+  weight: 99
+
+
+# Wechat user menu items definition
+entity.wechat_user.collection:
+  title: 'Wechat user list'
+  route_name: entity.wechat_user.collection
+  description: 'List Wechat user entities'
+  parent: system.admin_structure
+  weight: 100
+
+wechat_user.admin.structure.settings:
+  title: 'Wechat user settings'
+  description: 'Configure Wechat user entities'
+  route_name: wechat_user.settings
+  parent: system.admin_structure

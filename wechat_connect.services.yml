@@ -1,0 +1,4 @@
+services:
+  plugin.manager.wechat_application_type:
+    class: Drupal\wechat_connect\Plugin\WechatApplicationTypeManager
+    parent: default_plugin_manager
