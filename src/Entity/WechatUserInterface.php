@@ -16,25 +16,6 @@ interface WechatUserInterface extends ContentEntityInterface, EntityChangedInter
   // Add get/set methods for your configuration properties here.
 
   /**
-   * Gets the Wechat user name.
-   *
-   * @return string
-   *   Name of the Wechat user.
-   */
-  public function getName();
-
-  /**
-   * Sets the Wechat user name.
-   *
-   * @param string $name
-   *   The Wechat user name.
-   *
-   * @return \Drupal\wechat_connect\Entity\WechatUserInterface
-   *   The called Wechat user entity.
-   */
-  public function setName($name);
-
-  /**
    * Gets the Wechat user creation timestamp.
    *
    * @return int
@@ -53,25 +34,48 @@ interface WechatUserInterface extends ContentEntityInterface, EntityChangedInter
    */
   public function setCreatedTime($timestamp);
 
-  /**
-   * Returns the Wechat user published status indicator.
-   *
-   * Unpublished Wechat user are only visible to restricted users.
-   *
-   * @return bool
-   *   TRUE if the Wechat user is published.
-   */
-  public function isPublished();
 
   /**
-   * Sets the published status of a Wechat user.
-   *
-   * @param bool $published
-   *   TRUE to set this Wechat user to published, FALSE to set it to unpublished.
-   *
-   * @return \Drupal\wechat_connect\Entity\WechatUserInterface
-   *   The called Wechat user entity.
+   * @return string
    */
-  public function setPublished($published);
+  public function getAppId();
 
+  /**
+   * @param $app_id
+   * @return $this
+   */
+  public function setAppId($app_id);
+
+  /**
+   * @return string
+   */
+  public function getOpenId();
+
+  /**
+   * @param $open_id
+   * @return $this
+   */
+  public function setOpenId($open_id);
+
+  /**
+   * @return string
+   */
+  public function getUnionId();
+
+  /**
+   * @param $union_id
+   * @return $this
+   */
+  public function setUnionId($union_id);
+
+  /**
+   * @return string
+   */
+  public function getToken();
+
+  /**
+   * @param $data
+   * @return $this
+   */
+  public function setToken($data);
 }

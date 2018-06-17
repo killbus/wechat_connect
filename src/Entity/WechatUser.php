@@ -37,11 +37,10 @@ use Drupal\user\UserInterface;
  *   admin_permission = "administer wechat user entities",
  *   entity_keys = {
  *     "id" = "id",
- *     "label" = "name",
+ *     "label" = "open_id",
  *     "uuid" = "uuid",
  *     "uid" = "user_id",
- *     "langcode" = "langcode",
- *     "status" = "status",
+ *     "langcode" = "langcode"
  *   },
  *   links = {
  *     "canonical" = "/admin/people/wechat_user/{wechat_user}",
@@ -62,24 +61,6 @@ class WechatUser extends ContentEntityBase implements WechatUserInterface {
    */
   public static function preCreate(EntityStorageInterface $storage_controller, array &$values) {
     parent::preCreate($storage_controller, $values);
-    $values += [
-      'user_id' => \Drupal::currentUser()->id(),
-    ];
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getName() {
-    return $this->get('name')->value;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setName($name) {
-    $this->set('name', $name);
-    return $this;
   }
 
   /**
@@ -130,15 +111,60 @@ class WechatUser extends ContentEntityBase implements WechatUserInterface {
   /**
    * {@inheritdoc}
    */
-  public function isPublished() {
-    return (bool) $this->getEntityKey('status');
+  public function getAppId() {
+    return $this->get('app_id')->value;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function setPublished($published) {
-    $this->set('status', $published ? TRUE : FALSE);
+  public function setAppId($app_id) {
+    $this->set('app_id', $app_id);
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getOpenId() {
+    return $this->get('open_id')->value;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setOpenId($open_id) {
+    $this->set('open_id', $open_id);
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getUnionId() {
+    return $this->get('union_id')->value;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setUnionId($union_id) {
+    $this->set('union_id', $union_id);
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getToken() {
+    return $this->get('token')->value;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setToken($data) {
+    $this->set('token', $data);
     return $this;
   }
 
@@ -148,60 +174,27 @@ class WechatUser extends ContentEntityBase implements WechatUserInterface {
   public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
     $fields = parent::baseFieldDefinitions($entity_type);
 
+    // The ID of user account associated.
     $fields['user_id'] = BaseFieldDefinition::create('entity_reference')
-      ->setLabel(t('Authored by'))
-      ->setDescription(t('The user ID of author of the Wechat user entity.'))
-      ->setRevisionable(TRUE)
-      ->setSetting('target_type', 'user')
-      ->setSetting('handler', 'default')
-      ->setTranslatable(TRUE)
-      ->setDisplayOptions('view', [
-        'label' => 'hidden',
-        'type' => 'author',
-        'weight' => 0,
-      ])
-      ->setDisplayOptions('form', [
-        'type' => 'entity_reference_autocomplete',
-        'weight' => 5,
-        'settings' => [
-          'match_operator' => 'CONTAINS',
-          'size' => '60',
-          'autocomplete_type' => 'tags',
-          'placeholder' => '',
-        ],
-      ])
-      ->setDisplayConfigurable('form', TRUE)
-      ->setDisplayConfigurable('view', TRUE);
+      ->setLabel(t('User ID'))
+      ->setDescription(t('The Drupal uid associated with social network.'))
+      ->setSetting('target_type', 'user');
 
-    $fields['name'] = BaseFieldDefinition::create('string')
-      ->setLabel(t('Name'))
-      ->setDescription(t('The name of the Wechat user entity.'))
-      ->setSettings([
-        'max_length' => 50,
-        'text_processing' => 0,
-      ])
-      ->setDefaultValue('')
-      ->setDisplayOptions('view', [
-        'label' => 'above',
-        'type' => 'string',
-        'weight' => -4,
-      ])
-      ->setDisplayOptions('form', [
-        'type' => 'string_textfield',
-        'weight' => -4,
-      ])
-      ->setDisplayConfigurable('form', TRUE)
-      ->setDisplayConfigurable('view', TRUE)
-      ->setRequired(TRUE);
+    $fields['app_id'] = BaseFieldDefinition::create('string')
+      ->setLabel(t('Plugin ID'))
+      ->setDescription(t('Identifier for Social Auth implementer.'));
 
-    $fields['status'] = BaseFieldDefinition::create('boolean')
-      ->setLabel(t('Publishing status'))
-      ->setDescription(t('A boolean indicating whether the Wechat user is published.'))
-      ->setDefaultValue(TRUE)
-      ->setDisplayOptions('form', [
-        'type' => 'boolean_checkbox',
-        'weight' => -3,
-      ]);
+    $fields['open_id'] = BaseFieldDefinition::create('string')
+      ->setLabel(t('Provider user ID'))
+      ->setDescription(t('The unique user ID in the provider.'));
+
+    $fields['union_id'] = BaseFieldDefinition::create('string')
+      ->setLabel(t('Provider user ID'))
+      ->setDescription(t('The unique user ID in the provider.'));
+
+    $fields['token'] = BaseFieldDefinition::create('string_long')
+      ->setLabel(t('Token received after user authentication'))
+      ->setDescription(t('Used to make API calls.'));
 
     $fields['created'] = BaseFieldDefinition::create('created')
       ->setLabel(t('Created'))

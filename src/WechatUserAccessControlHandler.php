@@ -21,10 +21,7 @@ class WechatUserAccessControlHandler extends EntityAccessControlHandler {
     /** @var \Drupal\wechat_connect\Entity\WechatUserInterface $entity */
     switch ($operation) {
       case 'view':
-        if (!$entity->isPublished()) {
-          return AccessResult::allowedIfHasPermission($account, 'view unpublished wechat user entities');
-        }
-        return AccessResult::allowedIfHasPermission($account, 'view published wechat user entities');
+        return AccessResult::allowedIfHasPermission($account, 'view wechat user entities');
 
       case 'update':
         return AccessResult::allowedIfHasPermission($account, 'edit wechat user entities');

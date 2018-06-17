@@ -7,9 +7,9 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 
 /**
- * Builds the form to delete Wechat applcation entities.
+ * Builds the form to delete Wechat application entities.
  */
-class WechatApplcationDeleteForm extends EntityConfirmFormBase {
+class WechatApplicationDeleteForm extends EntityConfirmFormBase {
 
   /**
    * {@inheritdoc}
@@ -22,7 +22,7 @@ class WechatApplcationDeleteForm extends EntityConfirmFormBase {
    * {@inheritdoc}
    */
   public function getCancelUrl() {
-    return new Url('entity.wechat_applcation.collection');
+    return new Url('entity.wechat_application.collection');
   }
 
   /**

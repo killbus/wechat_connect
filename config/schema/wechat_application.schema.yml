@@ -1,0 +1,18 @@
+wechat_connect.wechat_application.*:
+  type: config_entity
+  label: 'Wechat application config'
+  mapping:
+    id:
+      type: string
+      label: 'App ID'
+    label:
+      type: label
+      label: 'Label'
+    secret:
+      type: string
+      label: 'App secret'
+    type:
+      type: string
+      label: 'App type'
+    uuid:
+      type: string

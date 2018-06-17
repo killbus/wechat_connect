@@ -12,8 +12,5 @@ delete wechat user entities:
 edit wechat user entities:
   title: 'Edit Wechat user entities'
 
-view published wechat user entities:
-  title: 'View published Wechat user entities'
-
-view unpublished wechat user entities:
-  title: 'View unpublished Wechat user entities'
+view wechat user entities:
+  title: 'View Wechat user entities'

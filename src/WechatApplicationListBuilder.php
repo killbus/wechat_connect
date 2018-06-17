@@ -6,15 +6,15 @@ use Drupal\Core\Config\Entity\ConfigEntityListBuilder;
 use Drupal\Core\Entity\EntityInterface;
 
 /**
- * Provides a listing of Wechat applcation entities.
+ * Provides a listing of Wechat application entities.
  */
-class WechatApplcationListBuilder extends ConfigEntityListBuilder {
+class WechatApplicationListBuilder extends ConfigEntityListBuilder {
 
   /**
    * {@inheritdoc}
    */
   public function buildHeader() {
-    $header['label'] = $this->t('Wechat applcation');
+    $header['label'] = $this->t('Wechat application');
     $header['id'] = $this->t('Machine name');
     return $header + parent::buildHeader();
   }

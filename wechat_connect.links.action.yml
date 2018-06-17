@@ -1,8 +1,8 @@
-entity.wechat_applcation.add_form:
-  route_name: entity.wechat_applcation.add_form
-  title: 'Add Wechat applcation'
+entity.wechat_application.add_form:
+  route_name: entity.wechat_application.add_form
+  title: 'Add Wechat application'
   appears_on:
-    - entity.wechat_applcation.collection
+    - entity.wechat_application.collection
 
 entity.wechat_user.add_form:
   route_name: entity.wechat_user.add_form

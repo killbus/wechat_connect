@@ -7,12 +7,12 @@ use Drupal\Core\Entity\Routing\AdminHtmlRouteProvider;
 use Symfony\Component\Routing\Route;
 
 /**
- * Provides routes for Wechat applcation entities.
+ * Provides routes for Wechat application entities.
  *
  * @see Drupal\Core\Entity\Routing\AdminHtmlRouteProvider
  * @see Drupal\Core\Entity\Routing\DefaultHtmlRouteProvider
  */
-class WechatApplcationHtmlRouteProvider extends AdminHtmlRouteProvider {
+class WechatApplicationHtmlRouteProvider extends AdminHtmlRouteProvider {
 
   /**
    * {@inheritdoc}
