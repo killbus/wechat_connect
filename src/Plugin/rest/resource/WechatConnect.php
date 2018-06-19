@@ -21,7 +21,7 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
  *   id = "wechat_connect",
  *   label = @Translation("Wechat connect"),
  *   uri_paths = {
- *     "canonical" = "/api/rest/wechat_connect/connect"
+ *     "create" = "/api/rest/wechat_connect/connect"
  *   }
  * )
  */
@@ -104,9 +104,10 @@ class WechatConnect extends ResourceBase {
       throw new AccessDeniedHttpException();
     }
 
-    list($app_id, $code) = $data;
-    if (empty($app_id) || empty($code)) {
-      throw new BadRequestHttpException('app_id and code is require.');
+    $client_id = $app_id = $code = null;
+    extract($data);
+    if (empty($client_id) || empty($app_id) || empty($code)) {
+      throw new BadRequestHttpException('client_id, app_id and code is require.');
     }
 
     // 查找 WechatApplication
@@ -120,7 +121,7 @@ class WechatConnect extends ResourceBase {
       'appId' => $wechat_application->id(),
       'appSecret' => $wechat_application->getSecret()
     ]);
-    $result = $plugin->connect($code);
+    $result = $plugin->connect($client_id, $code);
 
     return new ModifiedResourceResponse($result, 200);
   }

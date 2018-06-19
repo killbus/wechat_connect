@@ -1,1 +1,3 @@
-bundle: default
+required:
+  - rest.resource.wechat_connect
+  - rest.resource.wechat_register

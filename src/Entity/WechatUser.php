@@ -39,7 +39,6 @@ use Drupal\user\UserInterface;
  *     "id" = "id",
  *     "label" = "open_id",
  *     "uuid" = "uuid",
- *     "uid" = "user_id",
  *     "langcode" = "langcode"
  *   },
  *   links = {
