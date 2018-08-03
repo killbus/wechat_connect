@@ -10,5 +10,7 @@
     "issues": "https://www.drupal.org/project/issues/wechat_connect",
     "source": "http://cgit.drupalcode.org/wechat_connect"
   },
-  "require": { }
+  "require": {
+    "overtrue/wechat": "^3.3"
+  }
 }
