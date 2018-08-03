@@ -16,7 +16,7 @@ class MediaPlatform extends WechatApplicationTypeBase {
     $js_sdk = $this->getEasyWechatSdk();
     $js_sdk->setUrl($url);
 
-    return $js_sdk->config($js_apis);
+    return $js_sdk->config($js_apis, false, false, false);
   }
 
   /**
