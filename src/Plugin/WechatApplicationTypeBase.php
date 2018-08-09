@@ -193,6 +193,26 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
   }
 
   /**
+   * @param $uid
+   * @return \Drupal\Core\Entity\EntityInterface|WechatUser|null
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   */
+  public function getWechatUserByDrupalUser($uid) {
+    $query = \Drupal::entityTypeManager()->getStorage('wechat_user')->getQuery();
+    $query
+      ->condition('app_id', $this->configuration['appId'])
+      ->condition('user_id', $uid);
+    $ids = $query->execute();
+
+    $wechat_user = null;
+    if (count($ids)) {
+      $wechat_user = WechatUser::load(array_pop($ids));
+    }
+    return $wechat_user;
+  }
+
+  /**
    * @param $username
    * @param $email
    * @return User
