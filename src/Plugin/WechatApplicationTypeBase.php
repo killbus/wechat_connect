@@ -25,14 +25,29 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
    */
   public function connect($client_id, $code) {
     // 获取 access_token
-    $access_token = $this->getAccessToken($code);
-    $user_info = $this->receiveUserInfo($access_token->openid, $access_token->access_token);
+    $open_id = null;
+    $access_token = null;
+    try {
+      $access_token = $this->getAccessToken($code);
+      if (isset($access_token->openid)) $open_id = $access_token->openid;
+    } catch (\Exception $e) {
+      throw $e;
+    }
+
+    $user_info = null;
+    $union_id = null;
+    try {
+      $user_info = $this->receiveUserInfo($access_token->openid, $access_token->access_token);
+      if (isset($user_info->unionid)) $union_id = $user_info->unionid;
+    } catch (\Exception $e) {
+      \Drupal::logger('wechat_connect')->notice($e->getMessage());
+    }
 
     // 检查是否连接过
     $query = \Drupal::entityTypeManager()->getStorage('wechat_user')->getQuery();
     $query
       ->condition('app_id', $this->configuration['appId'])
-      ->condition('open_id', $user_info->openid);
+      ->condition('open_id', $open_id);
     $ids = $query->execute();
 
     $wechat_user = null;
@@ -40,7 +55,7 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
       // 还没有连接过，创建wechat_user
       $user_data = [
         'app_id' => $this->configuration['appId'],
-        'open_id' => $user_info->openid,
+        'open_id' => $open_id,
         'token' => json_encode($access_token)
       ];
       $wechat_user = WechatUser::create($user_data);
@@ -51,14 +66,13 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
     }
 
     // 如果有 union_id，保存它
-    if (isset($user_info->union_id)) $wechat_user->setUnionId($user_info->union_id);
+    if ($union_id) $wechat_user->setUnionId($union_id);
 
-
-    if (!$wechat_user->getOwnerId() && isset($user_info->union_id)) {
+    if (!$wechat_user->getOwnerId() && !empty($union_id)) {
       // 未注册，检查union_id，看用户是否在其他应用注册过
       $query = \Drupal::entityTypeManager()->getStorage('wechat_user')->getQuery();
       $query
-        ->condition('union_id', $user_info->union_id);
+        ->condition('union_id', $union_id);
       $ids = $query->execute();
       if (count($ids)) {
         $else_app_wechat_user = WechatUser::load(array_pop($ids));
@@ -78,10 +92,16 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
       $authorization = $generator->generate($client_id, $wechat_user->getOwner());
     }
 
-    return [
+    $rs = [
       'authorization' => $authorization,
-      'user_info' => json_decode(json_encode($user_info), true)
+      'user_info' => [
+        'openid' => $open_id
+      ]
     ];
+
+    if ($user_info) $rs['user_info'] = json_decode(json_encode($user_info), true);
+
+    return $rs;
   }
 
   /**
@@ -119,14 +139,28 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
     if (!$drupal_user) {
       // 拉取用户信息
       $access_token = json_decode($wechat_user->getToken());
-      $user_info = $this->receiveUserInfo($wechat_user->getOpenId(), $access_token->access_token);
+      $user_info = null;
+      $username = $phone ? '手机用户'.$phone : '微信用户';
+      try {
+        $user_info = $this->receiveUserInfo($wechat_user->getOpenId(), $access_token->access_token);
+        $username = $user_info->nickname;
+      } catch (\Exception $exception) {
+        \Drupal::logger('wechat_connect')->notice($exception->getMessage());
+      }
 
-      $drupal_user = $this->createUser($user_info->nickname, $open_id.'@wechat.com');
+      $drupal_user = $this->createUser($username, $wechat_user->getOpenId().'@wechat.com');
 
+      $need_save = false;
       if ($phone) {
         $drupal_user->set('phone', $phone);
-        $drupal_user->save();
+        $need_save = true;
       }
+      if ($user_info) {
+        $drupal_user->set('nick_name', $user_info->nickname);
+        // TODO:: 保存性别，头像
+        $need_save = true;
+      }
+      if ($need_save) $drupal_user->save();
     }
 
     $wechat_user->setOwnerId($drupal_user->id());
