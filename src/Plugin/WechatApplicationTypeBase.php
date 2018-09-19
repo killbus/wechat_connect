@@ -155,7 +155,7 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
         $drupal_user->set('phone', $phone);
         $need_save = true;
       }
-      if ($user_info) {
+      if ($user_info && $drupal_user->hasField('nick_name')) {
         $drupal_user->set('nick_name', $user_info->nickname);
         // TODO:: 保存性别，头像
         $need_save = true;
