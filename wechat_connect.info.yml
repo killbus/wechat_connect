@@ -4,11 +4,11 @@ description: 'My Awesome Module'
 core: 8.x
 package: Custom
 dependencies:
-  - basic_auth
-  - user_phone
-  - rest
-  - serialization
-  - simple_oauth
-  - simple_oauth_code
-  - user
-  - wechat_connect
+  - drupal:basic_auth
+  - user_phone:user_phone
+  - drupal:rest
+  - drupal:serialization
+  - simple_oauth:simple_oauth
+  - simple_oauth_code:simple_oauth_code
+  - drupal:user
+  - wechat_connect:wechat_connect
