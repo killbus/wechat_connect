@@ -1,4 +1,4 @@
-langcode: zh-hans
+langcode: en
 status: true
 dependencies:
   module:
@@ -7,6 +7,9 @@ dependencies:
     - simple_oauth
     - user
     - wechat_connect
+  enforced:
+    module:
+      - wechat_connect
 id: wechat_register
 plugin_id: wechat_register
 granularity: resource

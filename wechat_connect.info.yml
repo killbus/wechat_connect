@@ -1,14 +1,8 @@
 name: 'Wechat Connect'
 type: module
-description: 'My Awesome Module'
+description: 'Provides user connection between drupal and wechat.'
 core: 8.x
 package: Authentication
 dependencies:
-  - drupal:basic_auth
   - user_phone:user_phone
-  - drupal:rest
-  - drupal:serialization
-  - simple_oauth:simple_oauth
   - simple_oauth_code:simple_oauth_code
-  - drupal:user
-  - wechat_connect:wechat_connect
