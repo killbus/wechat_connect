@@ -4,6 +4,7 @@ namespace Drupal\wechat_connect\Plugin;
 
 use Drupal\Component\Plugin\PluginBase;
 use Drupal\Component\Utility\Unicode;
+use Drupal\Core\Session\AccountInterface;
 use Drupal\simple_oauth_code\AuthorizationCodeGeneratorInterface;
 use Drupal\user\Entity\User;
 use Drupal\wechat_connect\Entity\WechatUser;
@@ -19,63 +20,63 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
   const USER_INFO_ENDPOINT = 'https://api.weixin.qq.com/sns/userinfo';
 
   /**
-   * @param $code
+   * 检查一个 open_id 是否在当前应用连接过
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
-   * @throws \Drupal\Core\Entity\EntityStorageException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   * @return false|WechatUser
    */
-  public function connect($client_id, $code) {
-    // 获取 access_token
-    $open_id = null;
-    $access_token = null;
-    try {
-      $access_token = $this->getAccessToken($code);
-      if (isset($access_token->openid)) $open_id = $access_token->openid;
-    } catch (\Exception $e) {
-      throw $e;
-    }
-
-    $user_info = null;
-    $union_id = null;
-    try {
-      $user_info = $this->receiveUserInfo($access_token->openid, $access_token->access_token);
-      if (isset($user_info->unionid)) $union_id = $user_info->unionid;
-    } catch (\Exception $e) {
-      \Drupal::logger('wechat_connect')->notice($e->getMessage());
-    }
-
-    // 检查是否连接过
+  protected function hadConnected($open_id) {
     $query = \Drupal::entityTypeManager()->getStorage('wechat_user')->getQuery();
     $query
       ->condition('app_id', $this->configuration['appId'])
       ->condition('open_id', $open_id);
     $ids = $query->execute();
 
-    $wechat_user = null;
-    if (empty($ids)) {
+    if (!empty($ids)) {
+      return WechatUser::load(array_pop($ids));
+    } else return false;
+  }
+
+  /**
+   * 检查一个 union_id 是否在其他微信应用连接过
+   * @param $union_id
+   * @return bool|\Drupal\Core\Entity\EntityInterface|WechatUser|null
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   */
+  protected function hadConnectedByElseWechatApps($union_id) {
+    $query = \Drupal::entityTypeManager()->getStorage('wechat_user')->getQuery();
+    $query
+      ->condition('union_id', $union_id);
+    $ids = $query->execute();
+    if (count($ids)) {
+      return WechatUser::load(array_pop($ids));
+    } else return false;
+  }
+
+  protected function makeConnect($open_id, $union_id = null, $access_token = null, $session_key = null) {
+    $wechat_user = $this->hadConnected($open_id);
+    if ($wechat_user instanceof WechatUser) {
+      // 连接过，更新wechat_user
+      $wechat_user->setToken(json_encode($access_token));
+    } else {
       // 还没有连接过，创建wechat_user
       $user_data = [
         'app_id' => $this->configuration['appId'],
-        'open_id' => $open_id,
-        'token' => json_encode($access_token)
+        'open_id' => $open_id
       ];
+      if ($access_token) $user_data['token'] = $access_token;
+      if ($session_key) $user_data['session_key'] = $session_key;
       $wechat_user = WechatUser::create($user_data);
-    } else {
-      // 连接过，更新wechat_user
-      $wechat_user = WechatUser::load(array_pop($ids));
-      $wechat_user->setToken(json_encode($access_token));
     }
 
     // 如果有 union_id，保存它
     if ($union_id) $wechat_user->setUnionId($union_id);
 
+    // 如果有 union_id，并且还没创建 Drupal 用户，常试在其他微信应用中查找已关联 Drupal 用户并关联
     if (!$wechat_user->getOwnerId() && !empty($union_id)) {
-      // 未注册，检查union_id，看用户是否在其他应用注册过
-      $query = \Drupal::entityTypeManager()->getStorage('wechat_user')->getQuery();
-      $query
-        ->condition('union_id', $union_id);
-      $ids = $query->execute();
-      if (count($ids)) {
-        $else_app_wechat_user = WechatUser::load(array_pop($ids));
+      $else_app_wechat_user = $this->hadConnectedByElseWechatApps($union_id);
+      if ($else_app_wechat_user instanceof WechatUser) {
         if ($else_app_wechat_user->getOwnerId()) {
           $wechat_user->setOwnerId($else_app_wechat_user->getOwnerId());
         }
@@ -83,7 +84,10 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
     }
 
     $wechat_user->save();
+    return $wechat_user;
+  }
 
+  protected function makeConnectResult($client_id, $wechat_user, $extend_data = []) {
     $authorization = null;
     if ($wechat_user->getOwnerId()) {
       // 已经注册，生成 simple_oauth code
@@ -94,49 +98,65 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
 
     $rs = [
       'authorization' => $authorization,
-      'user_info' => [
-        'openid' => $open_id
-      ]
+      'connect_id' => $wechat_user->id(),
+      'extend_data' => $extend_data
     ];
-
-    if ($user_info) $rs['user_info'] = json_decode(json_encode($user_info), true);
 
     return $rs;
   }
 
   /**
-   * @param $open_id
-   * @param $username
-   * @param $password
-   * @param $phone
-   * @param $avatar
+   * @param $client_id
+   * @param $code
+   * @return array
    * @throws \Exception
    */
-  public function register($client_id, $open_id, $phone) {
-    // 检查是否连接过
-    $query = \Drupal::entityTypeManager()->getStorage('wechat_user')->getQuery();
-    $query
-      ->condition('app_id', $this->configuration['appId'])
-      ->condition('open_id', $open_id);
-    $ids = $query->execute();
+  public function connect($client_id, $code) {
 
-    if (!count($ids)) throw new \Exception('Can not find wechat user, maybe it has not connected yet.');
-
-    $drupal_user = null;
-    if ($phone) {
-      // 如果提供了手机号，查看手机号是否已经注册
-      $users = \Drupal::entityTypeManager()->getStorage('user')->loadByProperties([
-        'phone' => $phone
-      ]);
-
-      if (count($users)) {
-        $drupal_user = array_pop($users);
-      }
+    // 获取 access_token
+    $open_id = null;
+    $access_token = null;
+    try {
+      $access_token = $this->getAccessToken($code);
+      if (isset($access_token->openid)) $open_id = $access_token->openid;
+    } catch (\Exception $e) {
+      throw $e;
     }
 
-    $wechat_user = WechatUser::load(array_pop($ids));
+    // 获取用户信息
+    $user_info = null;
+    $union_id = null;
+    try {
+      $user_info = $this->receiveUserInfo($access_token->openid, $access_token->access_token);
+      if (isset($user_info->unionid)) $union_id = $user_info->unionid;
+    } catch (\Exception $e) {
+      \Drupal::logger('wechat_connect')->notice($e->getMessage());
+    }
 
-    if (!$drupal_user) {
+    $wechat_user = $this->makeConnect($open_id, $union_id, $access_token);
+
+    return $this->makeConnectResult($client_id, $wechat_user, $user_info ? json_decode(json_encode($user_info), true) : []);
+  }
+
+  /**
+   * @param $client_id
+   * @param $connect_id
+   * @param $phone
+   * @param array $extend_data
+   * @return array
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   */
+  public function register($client_id, $connect_id, $phone, $extend_data = []) {
+    // 检查是否连接过
+    $wechat_user = WechatUser::load($connect_id);
+    if (!($wechat_user instanceof WechatUser)) throw new \Exception('Can not find wechat user, maybe it has not connected yet.');
+
+    $drupal_user = empty($phone) ? null : $this->getDrupalUserByPhone($phone);
+
+    // 如果还没有关联 Drupal 账号，也没有通过手机号码查到已有 Drupal 账号
+    // 那么创建一个新的 Drupal 账号
+    if (!($wechat_user->getOwner() instanceof AccountInterface) && !$drupal_user) {
+
       // 拉取用户信息
       $access_token = json_decode($wechat_user->getToken());
       $user_info = null;
@@ -148,7 +168,7 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
         \Drupal::logger('wechat_connect')->notice($exception->getMessage());
       }
 
-      $drupal_user = $this->createUser($username, $wechat_user->getOpenId().'@wechat.com');
+      $drupal_user = $this->createUser($username, $wechat_user->getOpenId().'@weixin.qq.com');
 
       $need_save = false;
       if ($phone) {
@@ -167,17 +187,11 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
     $wechat_user->save();
 
     // 生成 simple_oauth code
-    $authorization = null;
-    if ($wechat_user->getOwnerId()) {
-      // 已经注册，生成 simple_oauth code
-      /** @var AuthorizationCodeGeneratorInterface $generator */
-      $generator = \Drupal::getContainer()->get('simple_oauth_code.authorization_code_generator');
-      $authorization = $generator->generate($client_id, $wechat_user->getOwner());
-    }
+    return $this->makeConnectResult($client_id, $wechat_user);
+  }
 
-    return [
-      'authorization' => $authorization
-    ];
+  protected function alterUser(&$drupal_user){
+    \Drupal::moduleHandler()->alter('wechat_connected_user', $drupal_user);
   }
 
 
@@ -253,5 +267,18 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
    */
   protected function createUser($username, $email) {
     return \Drupal::getContainer()->get('enhanced_user.user_creator')->createUser($username, $email);
+  }
+
+
+  protected function getDrupalUserByPhone($phone) {
+    // 如果提供了手机号，查看手机号是否已经注册
+    $users = \Drupal::entityTypeManager()->getStorage('user')->loadByProperties([
+      'phone' => $phone
+    ]);
+
+    if (count($users)) {
+      $drupal_user = array_pop($users);
+      return $drupal_user;
+    } else return false;
   }
 }

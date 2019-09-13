@@ -170,6 +170,21 @@ class WechatUser extends ContentEntityBase implements WechatUserInterface {
   /**
    * {@inheritdoc}
    */
+  public function getSessionKey() {
+    return $this->get('session_key')->value;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setSessionKey($data) {
+    $this->set('session_key', $data);
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
     $fields = parent::baseFieldDefinitions($entity_type);
 
@@ -194,6 +209,10 @@ class WechatUser extends ContentEntityBase implements WechatUserInterface {
     $fields['token'] = BaseFieldDefinition::create('string_long')
       ->setLabel(t('Token received after user authentication'))
       ->setDescription(t('Used to make API calls.'));
+
+    $fields['session_key'] = BaseFieldDefinition::create('string_long')
+      ->setLabel(t('Session key'))
+      ->setDescription(t('Session key for mini app login.'));
 
     $fields['created'] = BaseFieldDefinition::create('created')
       ->setLabel(t('Created'))

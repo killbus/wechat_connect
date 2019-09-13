@@ -11,6 +11,6 @@
     "source": "http://cgit.drupalcode.org/wechat_connect"
   },
   "require": {
-    "overtrue/wechat": "^4.1"
+    "overtrue/wechat": "^4.2"
   }
 }

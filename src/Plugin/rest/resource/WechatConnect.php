@@ -121,9 +121,13 @@ class WechatConnect extends ResourceBase {
       'appId' => $wechat_application->id(),
       'appSecret' => $wechat_application->getSecret()
     ]);
-    $result = $plugin->connect($client_id, $code);
 
-    return new ModifiedResourceResponse($result, 200);
+    try {
+      $result = $plugin->connect($client_id, $code);
+      return new ModifiedResourceResponse($result, 200);
+    } catch (\Exception $exception) {
+      throw new BadRequestHttpException($exception->getMessage());
+    }
   }
 
   public function permissions() {

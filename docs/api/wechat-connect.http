@@ -15,3 +15,15 @@ Content-Type: application/json
 }
 
 ###
+# 获取openid，创建账号
+# 返回 Oauth2 code，用此 code 可获取 Oauth2 access_token
+POST http://{{host}}/api/rest/wechat_connect/connect?_format=json
+Content-Type: application/json
+
+{
+  "client_id": "Oauth2登录client_id",
+  "app_id": "小程序app_id",
+  "code": "小程序wx.login拿到的code"
+}
+
+###

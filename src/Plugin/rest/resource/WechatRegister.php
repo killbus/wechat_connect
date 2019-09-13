@@ -86,14 +86,10 @@ class WechatRegister extends ResourceBase {
   /**
    * Responds to POST requests.
    *
-   * @param \Drupal\Core\Entity\EntityInterface $entity
-   *   The entity object.
-   *
+   * @param $data
    * @return \Drupal\rest\ModifiedResourceResponse
    *   The HTTP response object.
    *
-   * @throws \Symfony\Component\HttpKernel\Exception\HttpException
-   *   Throws exception expected.
    * @throws \Drupal\Component\Plugin\Exception\PluginException
    */
   public function post($data) {
@@ -104,10 +100,11 @@ class WechatRegister extends ResourceBase {
       throw new AccessDeniedHttpException();
     }
 
-    $client_id = $app_id = $open_id = $phone = null;
+    $client_id = $app_id = $connect_id = $phone = null;
+    $extend_data = [];
     extract($data);
-    if (empty($client_id) || empty($app_id) || empty($open_id)) {
-      throw new BadRequestHttpException('client_id, app_id and open_id is require.');
+    if (empty($client_id) || empty($app_id) || empty($connect_id)) {
+      throw new BadRequestHttpException('client_id, app_id and connect_id is require.');
     }
 
     // 查找 WechatApplication
@@ -116,12 +113,16 @@ class WechatRegister extends ResourceBase {
       throw new BadRequestHttpException('app_id is invalid.');
     }
 
-    /** @var WechatApplicationTypeInterface $plugin */
-    $plugin = $this->applicationTypePluginManager->createInstance($wechat_application->getType(), [
-      'appId' => $wechat_application->id(),
-      'appSecret' => $wechat_application->getSecret()
-    ]);
-    $result = $plugin->register($client_id, $open_id, $phone);
+    try {
+      /** @var WechatApplicationTypeInterface $plugin */
+      $plugin = $this->applicationTypePluginManager->createInstance($wechat_application->getType(), [
+        'appId' => $wechat_application->id(),
+        'appSecret' => $wechat_application->getSecret()
+      ]);
+      $result = $plugin->register($client_id, $connect_id, $phone, $extend_data);
+    } catch (\Exception $exception) {
+      throw new BadRequestHttpException($exception->getMessage());
+    }
 
     return new ModifiedResourceResponse($result, 200);
   }

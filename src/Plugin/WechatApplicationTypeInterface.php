@@ -12,5 +12,5 @@ interface WechatApplicationTypeInterface extends PluginInspectionInterface {
   // Add get/set methods for your plugin type here.
   public function connect($client_id, $code);
 
-  public function register($client_id, $open_id, $phone);
+  public function register($client_id, $open_id, $phone, $extend_data);
 }
