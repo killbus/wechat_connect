@@ -56,11 +56,9 @@ class WeApp extends WechatApplicationTypeBase {
 
     $drupal_user = $wechat_user->getOwner();
     if (!($drupal_user instanceof AccountInterface)) {
-      if (!empty($phone)) {
-        $drupal_user = $this->getDrupalUserByPhone($phone);
-      } else {
+      if (!empty($phone)) $drupal_user = $this->getDrupalUserByPhone($phone);
+      if (!($drupal_user instanceof AccountInterface))
         $drupal_user = $this->createUser('小程序用户' . $phone, $wechat_user->getOpenId().'@weixin.qq.com');
-      }
       $this->alterUser($drupal_user);
       $wechat_user->setOwnerId($drupal_user->id());
       $wechat_user->save();
