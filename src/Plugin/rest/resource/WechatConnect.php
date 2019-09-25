@@ -98,12 +98,6 @@ class WechatConnect extends ResourceBase {
    */
   public function post($data) {
 
-    // You must to implement the logic of your REST Resource here.
-    // Use current user after pass authentication to validate access.
-    if (!$this->currentUser->hasPermission('access content')) {
-      throw new AccessDeniedHttpException();
-    }
-
     $client_id = $app_id = $code = null;
     extract($data);
     if (empty($client_id) || empty($app_id) || empty($code)) {

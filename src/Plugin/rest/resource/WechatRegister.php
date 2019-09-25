@@ -94,12 +94,6 @@ class WechatRegister extends ResourceBase {
    */
   public function post($data) {
 
-    // You must to implement the logic of your REST Resource here.
-    // Use current user after pass authentication to validate access.
-    if (!$this->currentUser->hasPermission('access content')) {
-      throw new AccessDeniedHttpException();
-    }
-
     $client_id = $app_id = $connect_id = $phone = null;
     $extend_data = [];
     extract($data);
