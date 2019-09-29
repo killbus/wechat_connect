@@ -59,6 +59,7 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
     if ($wechat_user instanceof WechatUser) {
       // 连接过，更新wechat_user
       $wechat_user->setToken(json_encode($access_token));
+      if ($session_key) $wechat_user->setSessionKey($session_key);
     } else {
       // 还没有连接过，创建wechat_user
       $user_data = [
