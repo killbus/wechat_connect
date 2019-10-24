@@ -26,4 +26,9 @@ Content-Type: application/json
   "code": "小程序wx.login拿到的code"
 }
 
+### 微信小程序上传文件
+POST {{host}}/wechat-connect/upload-file?_format=json
+Content-Type: multipart/form-data
+Authorization: Basic {{username}} {{password}}
+
 ###

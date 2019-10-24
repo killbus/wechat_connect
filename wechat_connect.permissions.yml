@@ -14,3 +14,6 @@ edit wechat user entities:
 
 view wechat user entities:
   title: 'View Wechat user entities'
+
+wechat upload file:
+  title: 'Wechat upload file'

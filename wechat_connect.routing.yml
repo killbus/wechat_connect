@@ -1,0 +1,10 @@
+
+wechat_connect.wechat_upload_file_controller_do:
+  path: '/wechat-connect/upload-file'
+  defaults:
+    _controller: '\Drupal\wechat_connect\Controller\WechatUploadFileController::do'
+    _title: 'do'
+  requirements:
+    _permission: 'wechat upload file'
+  options:
+    _auth: ['basic_auth', 'oauth2', 'cookie']

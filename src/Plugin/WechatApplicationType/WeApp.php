@@ -98,4 +98,16 @@ class WeApp extends WechatApplicationTypeBase {
     }
     return $this->SDK;
   }
+
+  /**
+   * 获取小程序二维码
+   * @param $path
+   * @param $scene
+   * @param array $options
+   */
+  public function getQRCode($path, $scene, $options = []) {
+    return $this->getSDK()->app_code->getUnlimit($scene, [
+      'page'  => $path
+    ] + $options);
+  }
 }

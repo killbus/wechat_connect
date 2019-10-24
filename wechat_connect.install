@@ -1,0 +1,19 @@
+<?php
+
+/**
+ * @file
+ * Contains wechat_connect.module.
+ */
+
+use Drupal\user\RoleInterface;
+
+/**
+ * Implements hook_install().
+ */
+function wechat_connect_install()
+{
+  $permissions = [
+    'wechat upload file'
+  ];
+  user_role_grant_permissions(RoleInterface::AUTHENTICATED_ID, $permissions);
+}
