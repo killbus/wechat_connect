@@ -88,16 +88,21 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
     return $wechat_user;
   }
 
-  protected function makeConnectResult($client_id, $wechat_user, $extend_data = []) {
+  protected function makeConnectResult($client_id, WechatUser $wechat_user, $extend_data = []) {
     $authorization = null;
+    $active = false;
     if ($wechat_user->getOwnerId()) {
-      // 已经注册，生成 simple_oauth code
-      /** @var AuthorizationCodeGeneratorInterface $generator */
-      $generator = \Drupal::getContainer()->get('simple_oauth_code.authorization_code_generator');
-      $authorization = $generator->generate($client_id, $wechat_user->getOwner());
+      if ($wechat_user->getOwner()->isActive()) {
+        // 已经注册，生成 simple_oauth code
+        /** @var AuthorizationCodeGeneratorInterface $generator */
+        $generator = \Drupal::getContainer()->get('simple_oauth_code.authorization_code_generator');
+        $authorization = $generator->generate($client_id, $wechat_user->getOwner());
+        $active = true;
+      }
     }
 
     $rs = [
+      'active' => $active,
       'authorization' => $authorization,
       'connect_id' => $wechat_user->id(),
       'extend_data' => $extend_data
