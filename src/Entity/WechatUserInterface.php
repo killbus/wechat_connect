@@ -78,4 +78,15 @@ interface WechatUserInterface extends ContentEntityInterface, EntityChangedInter
    * @return $this
    */
   public function setToken($data);
+
+  /**
+   * @return string
+   */
+  public function getSessionKey();
+
+  /**
+   * @param $data
+   * @return $this
+   */
+  public function setSessionKey($data);
 }

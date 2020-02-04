@@ -3,21 +3,172 @@
 namespace Drupal\wechat_connect\Plugin;
 
 use Drupal\Component\Plugin\PluginBase;
-use Drupal\Component\Utility\Unicode;
-use Drupal\Core\Session\AccountInterface;
 use Drupal\simple_oauth_code\AuthorizationCodeGeneratorInterface;
 use Drupal\user\Entity\User;
+use Drupal\user\UserInterface;
 use Drupal\wechat_connect\Entity\WechatUser;
-use GuzzleHttp\Exception\GuzzleException;
+use Drupal\wechat_connect\Entity\WechatUserInterface;
+use GuzzleHttp\Client;
 
 /**
  * Base class for Wechat application type plugins.
  */
 abstract class WechatApplicationTypeBase extends PluginBase implements WechatApplicationTypeInterface {
 
-  const ACCESS_TOKEN_ENDPOINT = 'https://api.weixin.qq.com/sns/oauth2/access_token';
-  const REFRESH_TOKEN_ENDPOINT = 'https://api.weixin.qq.com/sns/oauth2/refresh_token';
-  const USER_INFO_ENDPOINT = 'https://api.weixin.qq.com/sns/userinfo';
+  const ENDPOINT_ACCESS_TOKEN = 'https://api.weixin.qq.com/sns/oauth2/access_token';
+  const ENDPOINT_REFRESH_TOKEN = 'https://api.weixin.qq.com/sns/oauth2/refresh_token';
+  const ENDPOINT_USER_INFO = 'https://api.weixin.qq.com/sns/userinfo';
+
+  /**
+   * @inheritDoc
+   */
+  public function connect($drupal_oauth2_client_id, $wechat_app_id, $code) {
+    $session_data = $this->getSessionData($code);
+    $open_id = $this->getOpenIdFromSessionData($session_data);
+
+    $wechat_user = $this->hadConnected($open_id);
+    if (!$wechat_user instanceof WechatUserInterface) {
+      $user_data = [
+        'app_id' => $this->configuration['appId'],
+        'open_id' => $open_id
+      ];
+      $wechat_user = WechatUser::create($user_data);
+    }
+    $this->saveWechatUserEntity($wechat_user, $session_data);
+    $wechat_user->save();
+
+    return $this->generateDrupalConnectInfo($drupal_oauth2_client_id, $wechat_user);
+  }
+
+  protected function getSessionData($code) {
+    return $this->getWechatOauth2AccessToken($code);
+  }
+
+  protected function getOpenIdFromSessionData($session_data) {
+    return $session_data->openid;
+  }
+
+  protected function saveWechatUserEntity(WechatUserInterface &$wechat_user, $session_data) {
+    $wechat_user->setToken($session_data->access_token);
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function register($drupal_oauth2_client_id, $connect_id, $phone, $extend_data = []) {
+    // 检查是否连接过
+    $wechat_user = WechatUser::load($connect_id);
+    if (!($wechat_user instanceof WechatUser)) throw new \Exception('Can not find wechat user, maybe it has not connected yet.');
+
+    $user_info = $this->getWechatUserInfo($wechat_user, $extend_data);
+    $drupal_user = $wechat_user->getOwner();
+    if (!$drupal_user instanceof UserInterface) {
+      // 1、通过 unionid 查找 drupal_user
+      $unionid = $this->getUnionIdFromWechatUserInfo($wechat_user, $user_info);
+      if ($unionid) {
+        $else_app_wechat_user = $this->hadConnectedByElseWechatApps($unionid);
+        if ($else_app_wechat_user instanceof WechatUser && $else_app_wechat_user->getOwnerId()) {
+          $drupal_user = $else_app_wechat_user->getOwner();
+        }
+      }
+      // 2、通过手机号查找 drupal_user
+      if (!$drupal_user instanceof UserInterface) {
+        $drupal_user = empty($phone) ? null : $this->getDrupalUserByPhone($phone);
+      }
+      // 3、创建新的 drupal_user
+      if (!$drupal_user instanceof UserInterface) {
+        $username = $this->getNewUsername($user_info);
+        $drupal_user = $this->createUser($username);
+      }
+    }
+
+    // 保存 drupal_user 数据
+    if ($phone) $drupal_user->set('phone', $phone);
+    $this->saveDrupalUserInfo($drupal_user, $user_info);
+    $this->alterUser($drupal_user);
+    $drupal_user->save();
+
+    // 关联 wechat_user 与 drupal_user
+    $wechat_user->setOwner($drupal_user);
+    $wechat_user->save();
+
+    return $this->generateDrupalConnectInfo($drupal_oauth2_client_id, $wechat_user);
+  }
+
+  protected function getWechatUserInfo(WechatUserInterface $wechat_user, $extend_data = []) {
+    $client = new Client();
+    $query_params = [
+      'access_token' => $wechat_user->getToken(),
+      'openid' => $wechat_user->getOpenId(),
+      'lang' => 'zh_CN'
+    ];
+    $res = $client->request('GET', self::ENDPOINT_USER_INFO . '?' . http_build_query($query_params));
+    if ($res->getStatusCode() === 200) {
+      $result = json_decode($res->getBody());
+      if (isset($result->errcode)) {
+        throw new \Exception('fetch wechat user_info fail. ' . $res->getBody());
+      } else {
+        return $result;
+      }
+    }
+  }
+
+  protected function getUnionIdFromWechatUserInfo(WechatUserInterface $wechat_user, $user_info) {
+    return isset($user_info->unionid) ? $user_info->unionid : null;
+  }
+
+  protected function getNewUsername($user_info) {
+    return isset($user_info->nickname) ? $user_info->nickname : '微信用户';
+  }
+
+  /**
+   * 保存微信个人信息到 Drupal 用户，
+   * 不需要手动调用 ->save()。
+   * @param $drupal_user
+   * @param $user_info
+   */
+  protected function saveDrupalUserInfo(&$drupal_user, $user_info) {
+    $drupal_user->set('nick_name', $user_info->nickname);
+  }
+
+  protected function generateDrupalConnectInfo($drupal_oauth2_client_id, WechatUser $wechat_user, $extend_data = []) {
+    $authorization = null;
+    $active = false;
+    if ($wechat_user->getOwnerId()) {
+      // 已经注册，生成 simple_oauth code
+      /** @var AuthorizationCodeGeneratorInterface $generator */
+      $generator = \Drupal::getContainer()->get('simple_oauth_code.authorization_code_generator');
+      $authorization = $generator->generate($drupal_oauth2_client_id, $wechat_user->getOwner());
+      if ($wechat_user->getOwner()->isActive()) {
+        $active = true;
+      }
+    }
+    return [
+      'active' => $active,  // 用户账号可用状态
+      'authorization' => $authorization,  // 用于创建 Drupal access_token 的 auth_code
+      'connect_id' => $wechat_user->id(), // WechatUser entity ID
+      'extend_data' => $extend_data       // 需要返回的额外数据
+    ];
+  }
+
+  protected function getWechatOauth2AccessToken($code) {
+    $client = new Client();
+    $query_params = [
+      'appid' => $this->configuration['appId'],
+      'secret' => $this->configuration['appSecret'],
+      'code' => $code,
+      'grant_type' => 'authorization_code'
+    ];
+    $res = $client->request('GET', self::ENDPOINT_ACCESS_TOKEN . '?' . http_build_query($query_params));
+    if ($res->getStatusCode() === 200) {
+      $result = json_decode($res->getBody());
+      if (isset($result->access_token)) {
+        return $result;
+      } else {
+        throw new \Exception('fetch wechat access token fail. ' . $res->getBody());
+      }
+    }
+  }
 
   /**
    * 检查一个 open_id 是否在当前应用连接过
@@ -54,196 +205,8 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
     } else return false;
   }
 
-  protected function makeConnect($open_id, $union_id = null, $access_token = null, $session_key = null) {
-    $wechat_user = $this->hadConnected($open_id);
-    if ($wechat_user instanceof WechatUser) {
-      // 连接过，更新wechat_user
-      $wechat_user->setToken(json_encode($access_token));
-      if ($session_key) $wechat_user->setSessionKey($session_key);
-    } else {
-      // 还没有连接过，创建wechat_user
-      $user_data = [
-        'app_id' => $this->configuration['appId'],
-        'open_id' => $open_id
-      ];
-      if ($access_token) $user_data['token'] = $access_token;
-      if ($session_key) $user_data['session_key'] = $session_key;
-      $wechat_user = WechatUser::create($user_data);
-    }
-
-    // 如果有 union_id，保存它
-    if ($union_id) $wechat_user->setUnionId($union_id);
-
-    // 如果有 union_id，并且还没创建 Drupal 用户，常试在其他微信应用中查找已关联 Drupal 用户并关联
-    if (!$wechat_user->getOwnerId() && !empty($union_id)) {
-      $else_app_wechat_user = $this->hadConnectedByElseWechatApps($union_id);
-      if ($else_app_wechat_user instanceof WechatUser) {
-        if ($else_app_wechat_user->getOwnerId()) {
-          $wechat_user->setOwnerId($else_app_wechat_user->getOwnerId());
-        }
-      }
-    }
-
-    $wechat_user->save();
-    return $wechat_user;
-  }
-
-  protected function makeConnectResult($client_id, WechatUser $wechat_user, $extend_data = []) {
-    $authorization = null;
-    $active = false;
-    if ($wechat_user->getOwnerId()) {
-      // 已经注册，生成 simple_oauth code
-      /** @var AuthorizationCodeGeneratorInterface $generator */
-      $generator = \Drupal::getContainer()->get('simple_oauth_code.authorization_code_generator');
-      $authorization = $generator->generate($client_id, $wechat_user->getOwner());
-      if ($wechat_user->getOwner()->isActive()) {
-        $active = true;
-      }
-    }
-
-    $rs = [
-      'active' => $active,
-      'authorization' => $authorization,
-      'connect_id' => $wechat_user->id(),
-      'extend_data' => $extend_data
-    ];
-
-    return $rs;
-  }
-
-  /**
-   * @param $client_id
-   * @param $code
-   * @return array
-   * @throws \Exception
-   */
-  public function connect($client_id, $code) {
-
-    // 获取 access_token
-    $open_id = null;
-    $access_token = null;
-    try {
-      $access_token = $this->getAccessToken($code);
-      if (isset($access_token->openid)) $open_id = $access_token->openid;
-    } catch (\Exception $e) {
-      throw $e;
-    }
-
-    // 获取用户信息
-    $user_info = null;
-    $union_id = null;
-    try {
-      $user_info = $this->receiveUserInfo($access_token->openid, $access_token->access_token);
-      if (isset($user_info->unionid)) $union_id = $user_info->unionid;
-    } catch (\Exception $e) {
-      \Drupal::logger('wechat_connect')->notice($e->getMessage());
-    }
-
-    $wechat_user = $this->makeConnect($open_id, $union_id, $access_token);
-
-    return $this->makeConnectResult($client_id, $wechat_user, $user_info ? json_decode(json_encode($user_info), true) : []);
-  }
-
-  /**
-   * @param $client_id
-   * @param $connect_id
-   * @param $phone
-   * @param array $extend_data
-   * @return array
-   * @throws \Drupal\Core\Entity\EntityStorageException
-   */
-  public function register($client_id, $connect_id, $phone, $extend_data = []) {
-    // 检查是否连接过
-    $wechat_user = WechatUser::load($connect_id);
-    if (!($wechat_user instanceof WechatUser)) throw new \Exception('Can not find wechat user, maybe it has not connected yet.');
-
-    $drupal_user = empty($phone) ? null : $this->getDrupalUserByPhone($phone);
-
-    // 如果还没有关联 Drupal 账号，也没有通过手机号码查到已有 Drupal 账号
-    // 那么创建一个新的 Drupal 账号
-    if (!($wechat_user->getOwner() instanceof AccountInterface) && !$drupal_user) {
-
-      // 拉取用户信息
-      $access_token = json_decode($wechat_user->getToken());
-      $user_info = null;
-      $username = $phone ? '手机用户'.$phone : '微信用户';
-      try {
-        $user_info = $this->receiveUserInfo($wechat_user->getOpenId(), $access_token->access_token);
-        $username = $user_info->nickname;
-      } catch (\Exception $exception) {
-        \Drupal::logger('wechat_connect')->notice($exception->getMessage());
-      }
-
-      $drupal_user = $this->createUser($username, $wechat_user->getOpenId().'@weixin.qq.com');
-
-      $need_save = false;
-      if ($phone) {
-        $drupal_user->set('phone', $phone);
-        $need_save = true;
-      }
-      if ($user_info && $drupal_user->hasField('nick_name')) {
-        $drupal_user->set('nick_name', $user_info->nickname);
-        // TODO:: 保存性别，头像
-        $need_save = true;
-      }
-      if ($need_save) $drupal_user->save();
-    }
-
-    $wechat_user->setOwnerId($drupal_user->id());
-    $wechat_user->save();
-
-    // 生成 simple_oauth code
-    return $this->makeConnectResult($client_id, $wechat_user);
-  }
-
   protected function alterUser(&$drupal_user){
     \Drupal::moduleHandler()->alter('wechat_connected_user', $drupal_user);
-  }
-
-
-  /**
-   * @param $code
-   * @return mixed
-   * @throws \Exception
-   */
-  public function getAccessToken($code) {
-
-    $client = new \GuzzleHttp\Client();
-
-    $query_params = [
-      'appid' => $this->configuration['appId'],
-      'secret' => $this->configuration['appSecret'],
-      'code' => $code,
-      'grant_type' => 'authorization_code'
-    ];
-    $res = $client->request('GET', self::ACCESS_TOKEN_ENDPOINT . '?' . http_build_query($query_params));
-    if ($res->getStatusCode() === 200) {
-      $result = json_decode($res->getBody());
-      if (isset($result->access_token)) {
-        return $result;
-      } else {
-        throw new \Exception('fetch wechat access token fail. ' . $res->getBody());
-      }
-    }
-  }
-
-  public function receiveUserInfo($open_id, $access_token) {
-
-    $client = new \GuzzleHttp\Client();
-    $query_params = [
-      'access_token' => $access_token,
-      'openid' => $open_id,
-      'lang' => 'zh_CN'
-    ];
-    $res = $client->request('GET', self::USER_INFO_ENDPOINT . '?' . http_build_query($query_params));
-    if ($res->getStatusCode() === 200) {
-      $result = json_decode($res->getBody());
-      if (isset($result->errcode)) {
-        throw new \Exception('fetch wechat user_info fail. ' . $res->getBody());
-      } else {
-        return $result;
-      }
-    }
   }
 
   /**
@@ -271,8 +234,8 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
    * @param $email
    * @return User
    */
-  protected function createUser($username, $email) {
-    return \Drupal::getContainer()->get('enhanced_user.user_creator')->createUser($username, $email);
+  protected function createUser($username) {
+    return \Drupal::getContainer()->get('enhanced_user.user_creator')->createUser($username);
   }
 
 

@@ -117,7 +117,7 @@ class WechatConnect extends ResourceBase {
     ]);
 
     try {
-      $result = $plugin->connect($client_id, $code);
+      $result = $plugin->connect($client_id, $app_id, $code);
       return new ModifiedResourceResponse($result, 200);
     } catch (\Exception $exception) {
       throw new BadRequestHttpException($exception->getMessage());
