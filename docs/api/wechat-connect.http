@@ -32,3 +32,18 @@ Content-Type: multipart/form-data
 Authorization: Basic {{username}} {{password}}
 
 ###
+# 微信授权登录：原生 APP
+POST {{host}}/oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=wechat_native_app_code&client_id={{client_id}}&client_secret={{client_secret}}&code={{wechat_native_app_code}}&scope=
+
+###
+# 微信授权登录：微信小程序
+POST {{host}}/oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=wechat_mini_program_code&client_id={{client_id}}&client_secret={{client_secret}}&code={{wechat_native_app_code}}&scope=
+
+###
+# 微信授权登录：Web 应用(Website/公众号h5)

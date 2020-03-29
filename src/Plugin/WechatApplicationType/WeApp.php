@@ -1,12 +1,17 @@
 <?php
 namespace Drupal\wechat_connect\Plugin\WechatApplicationType;
 
+use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Session\AccountInterface;
+use Drupal\user\UserInterface;
 use Drupal\wechat_connect\Entity\WechatUser;
 use Drupal\wechat_connect\Plugin\WechatApplicationTypeBase;
 use EasyWeChat\Factory;
+use EasyWeChat\Kernel\Exceptions\InvalidConfigException;
 
 /**
+ * Mini Program like Native App, but more.
+ *
  * @WechatApplicationType(
  *   id = "we_app",
  *   label = @Translation("Wechat mini App")
@@ -20,12 +25,13 @@ class WeApp extends WechatApplicationTypeBase {
    * 小程序有自己的登录方案，使用 code2session接口，
    * 除了保存 openid/union_id，还要保存 session_key，
    * 用于解密小程序端获取的加密开放数据。
-   * @param $client_id
    * @param $code
-   * @return array|void
-   * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
+   * @param array $extend_data
+   * @return UserInterface
+   * @throws EntityStorageException
+   * @throws InvalidConfigException
    */
-  public function connect($client_id, $code)
+  public function connect($code, $extend_data = [])
   {
     $session = $this->getSDK()->auth->session($code);
 
@@ -38,42 +44,29 @@ class WeApp extends WechatApplicationTypeBase {
     $open_id = $session['openid'];
     $union_id = isset($session['unionid']) ? $session['unionid'] : null;
     $session_key = $session['session_key'];
+
     $wechat_user = $this->makeConnect($open_id, $union_id, null, $session_key);
 
-    return $this->makeConnectResult($client_id, $wechat_user);
-  }
+    $user_info = [];
+    if (isset($extend_data['user_info'])) {
+      // 解密用户资料
+      $user_info_raw = $this->decryptMiniProgramData($wechat_user->getSessionKey(), $extend_data['user_info']['iv'], $extend_data['user_info']['encryptedData']);
+      if (isset($user_info_raw['nickName'])) $user_info['nickname'] = $user_info_raw['nickName'];
+      if (isset($user_info_raw['gender'])) $user_info['sex'] = $user_info_raw['gender'];
+      if (isset($user_info_raw['avatarUrl'])) $user_info['avatar'] = $user_info_raw['avatarUrl'];
+    }
 
-  public function register($client_id, $connect_id, $phone = null, $extend_data = [])
-  {
-    // 检查是否连接过
-    $wechat_user = WechatUser::load($connect_id);
-    if (!($wechat_user instanceof WechatUser)) throw new \Exception('Can not find wechat user, maybe it has not connected yet.');
-
+    $phone = null;
     if (isset($extend_data['phone'])) {
       // 解密数据，提取手机号
-      $phone = $this->decryptPhoneData($wechat_user->getSessionKey(), $extend_data['phone']['iv'], $extend_data['phone']['encryptedData']);
+      $phone = $this->decryptMiniProgramData($wechat_user->getSessionKey(), $extend_data['phone']['iv'], $extend_data['phone']['encryptedData']);
     }
 
-    $drupal_user = $wechat_user->getOwner();
-    if (!($drupal_user instanceof AccountInterface)) {
-      if (!empty($phone)) $drupal_user = $this->getDrupalUserByPhone($phone);
-      if (!($drupal_user instanceof AccountInterface))
-        $drupal_user = $this->createUser('小程序用户' . $phone, $wechat_user->getOpenId().'@weixin.qq.com');
-      $this->alterUser($drupal_user);
-      $wechat_user->setOwnerId($drupal_user->id());
-      $wechat_user->save();
-    }
-
-    if ($drupal_user->get('phone')->isEmpty() && !empty($phone)) {
-      $drupal_user->set('phone', $phone);
-      $drupal_user->save();
-    }
-
-    // 生成 simple_oauth code
-    return $this->makeConnectResult($client_id, $wechat_user);
+    if ($wechat_user->getOwner()) return $wechat_user->getOwner();
+    else return $this->register($wechat_user, $user_info, $phone);
   }
 
-  public function decryptPhoneData($session_key, $iv, $encryptedData) {
+  public function decryptMiniProgramData($session_key, $iv, $encryptedData) {
     $decryptedData = $this->getSDK()->encryptor->decryptData($session_key, $iv, $encryptedData);
     return $decryptedData['purePhoneNumber'];
   }

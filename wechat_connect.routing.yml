@@ -1,3 +1,32 @@
+wechat_connect.authorize:
+  path: '/oauth/wechat-authorize'
+  defaults:
+    _controller: 'Drupal\wechat_connect\Controller\WeChatOauth2AuthorizeController::authorize'
+    _title: 'Grant Access to Client'
+  methods: [GET, POST]
+  requirements:
+    _access: 'TRUE'
+  options:
+    no_cache: TRUE
+
+wechat_connect.redirect_to_wechat:
+  path: 'user/login/wechat-connection/{app_id}'
+  defaults:
+    _controller: 'Drupal\wechat_connect\Controller\WeChatAuthController::redirectToWeChat'
+  requirements:
+    _access: 'TRUE'
+  options:
+    no_cache: TRUE
+
+wechat_connect.callback:
+  #path: '/user/login/wechat-connection/callback'
+  path: '/ologin/weixin/callback'
+  defaults:
+    _controller: 'Drupal\wechat_connect\Controller\WeChatAuthController::callback'
+  requirements:
+    _role: 'anonymous'
+  options:
+    no_cache: TRUE
 
 wechat_connect.wechat_upload_file_controller_do:
   path: '/wechat-connect/upload-file'
