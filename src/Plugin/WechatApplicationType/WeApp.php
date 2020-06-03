@@ -60,6 +60,7 @@ class WeApp extends WechatApplicationTypeBase {
     if (isset($extend_data['phone'])) {
       // 解密数据，提取手机号
       $phone = $this->decryptMiniProgramData($wechat_user->getSessionKey(), $extend_data['phone']['iv'], $extend_data['phone']['encryptedData']);
+      $phone = $phone['purePhoneNumber'] ?? null;
     }
 
     if ($wechat_user->getOwner()) return $wechat_user->getOwner();
@@ -68,7 +69,7 @@ class WeApp extends WechatApplicationTypeBase {
 
   public function decryptMiniProgramData($session_key, $iv, $encryptedData) {
     $decryptedData = $this->getSDK()->encryptor->decryptData($session_key, $iv, $encryptedData);
-    return $decryptedData['purePhoneNumber'];
+    return $decryptedData;
   }
 
   private function getSDK() {

@@ -49,7 +49,7 @@ class WeChatNativeAppCodeGrant extends PasswordGrant {
     }
 
     /** @var WechatApplicationTypeInterface $plugin */
-    $plugin = $this->applicationTypePluginManager->createInstance($wechat_application->getType(), [
+    $plugin = \Drupal::service('plugin.manager.wechat_application_type')->createInstance($wechat_application->getType(), [
       'appId' => $wechat_application->id(),
       'appSecret' => $wechat_application->getSecret()
     ]);

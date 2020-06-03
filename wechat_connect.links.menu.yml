@@ -4,7 +4,7 @@ entity.wechat_application.collection:
   title: 'Wechat application'
   route_name: entity.wechat_application.collection
   description: 'List Wechat application (bundles)'
-  parent: system.admin_config
+  parent: system.admin_config_system
   weight: 99
 
 

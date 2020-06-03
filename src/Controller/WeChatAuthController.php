@@ -134,9 +134,16 @@ class WeChatAuthController extends ControllerBase {
    * @return \Symfony\Component\HttpFoundation\RedirectResponse
    */
   public function callback() {
-    $state = json_decode(base64_decode($_GET['state']));
-    $wechat_application = WechatApplication::load($state->app_id);
-    if (!($wechat_application instanceof WechatApplication)) {
+    //$postReq = \Drupal::request()->request->all();
+    $getQuery = \Drupal::request()->query->all();
+    try {
+      $state = json_decode(base64_decode($getQuery['state']));
+      $wechat_application = WechatApplication::load($state->app_id);
+      if (!($wechat_application instanceof WechatApplication)) {
+        throw new BadRequestHttpException('state is invalid.');
+      }
+    } catch (\Exception $exception) {
+      \Drupal::logger('wechat_connect')->error($exception->getMessage());
       throw new BadRequestHttpException('state is invalid.');
     }
 
@@ -150,7 +157,8 @@ class WeChatAuthController extends ControllerBase {
       // 用 code 换 AccessToken
       // 用 AccessToken 拉取用户信息
       // 创建/更新微信用户信息
-      $user = $plugin->connect($_GET['code']);
+      $extend_data = json_decode($getQuery['extendData'], True) ?? [];
+      $user = $plugin->connect($getQuery['code'], $extend_data);
 
       // 登录用户，引导到手机号绑定表单
       user_login_finalize($user);
