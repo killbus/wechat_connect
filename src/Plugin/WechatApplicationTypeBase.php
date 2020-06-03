@@ -138,7 +138,10 @@ abstract class WechatApplicationTypeBase extends PluginBase implements WechatApp
 
       /** @var \Drupal\mobile_number\MobileNumberUtilInterface $util */
       $util = \Drupal::service('mobile_number.util');
-      $phone = $util->getMobileNumber($phone['countryCode'].$phone['purePhoneNumber']);
+
+      if (!empty($phone['countryCode']) && !empty($phone['purePhoneNumber'])) {
+        $phone = $util->getMobileNumber($phone['countryCode'].$phone['purePhoneNumber']);
+      }
 
       // 如果提供了手机号，尝试查找已有 Drupal 账号
       if (!empty($phone)) {
