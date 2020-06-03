@@ -36,6 +36,14 @@ class WeChatNativeAppCodeGrant extends PasswordGrant {
       throw OAuthServerException::invalidRequest('app_id');
     }
 
+    $extend_data = $this->getRequestParameter('extend_data', $request);
+    if (!is_null($extend_data)) {
+      $extend_data = json_decode(urldecode($extend_data), true);
+      if (is_null($extend_data)) {
+        $extend_data = [];
+      }
+    }
+
     // 直接创建新用户，如果要绑定到已有用户，后期换绑
 
     // 用 code 换 AccessToken
@@ -55,7 +63,7 @@ class WeChatNativeAppCodeGrant extends PasswordGrant {
     ]);
 
     try {
-      $drupal_user = $plugin->connect($code);
+      $drupal_user = $plugin->connect($code, $extend_data);
       $user = new UserEntity();
       $user->setIdentifier($drupal_user->id());
       return $user;
